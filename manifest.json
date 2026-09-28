@@ -1,0 +1,59 @@
+{
+	"build": {
+		"NAME": "paperd-pomodoro"
+	},
+	"config": {
+		"ssid": null,
+		"password": null,
+		"sntp": "pool.ntp.org",
+		"linearizerHost": "192.168.178.76",
+		"linearizerPort": 4100,
+		"linearizerPath": "/api/today",
+		"battery": true
+	},
+	"include": [
+		"$(MODDABLE)/examples/manifest_base.json",
+		"$(MODDABLE)/examples/manifest_piu.json",
+		"$(MODDABLE)/examples/manifest_net.json",
+		"$(MODDABLE)/modules/network/net/manifest.json",
+		"$(MODDABLE)/examples/io/tcp/fetch/manifest_fetch.json"
+	],
+	"modules": {
+		"*": [
+			"./main"
+		]
+	},
+	"resources": {
+		"*-mask": [
+			{
+				"source": "./fonts/PixelOperator/PixelOperator-Regular",
+				"size": 80,
+				"monochrome": true
+			},
+			{
+				"source": "./fonts/PixelOperator/PixelOperator-Regular",
+				"size": 24,
+				"monochrome": true
+			},
+			{
+				"source": "./fonts/PixelOperator/PixelOperator-Regular",
+				"size": 16,
+				"monochrome": true
+			}
+		]
+	},
+	"platforms": {
+		"lin/paperd_classic": {},
+		"mac/paperd_classic": {},
+		"win/paperd_classic": {},
+		"esp32/paperd_classic": {},
+		"...": {
+			"error": "Platform not supported - paperd.ink classic (or its simulator) only"
+		}
+	},
+	"defines": {
+		"poco": {
+			"logOverflow": true
+		}
+	}
+}
