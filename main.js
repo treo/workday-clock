@@ -481,20 +481,18 @@ function withTimeout(promise, ms, message)
 }
 
 // resolves with the `data` object of GET /api/today; rejects on any failure
-function fetchToday()
+async function fetchToday()
 {
-	return withTimeout(
-		// fetch() only converts a plain object into Headers for POST/PUT, so
-		// hand the client a real Headers instance
-		fetch(LINEARIZER_URL, { headers: new Headers([["Accept", "application/json"]]) }).then(
-			(response) => {
-				if (!response.ok)
-					throw new Error(`linearizer: HTTP ${response.status}`);
-				return response.json();
-			}
-		),
+	// fetch() only converts a plain object into Headers for POST/PUT, so
+	// hand the client a real Headers instance
+	const response = await withTimeout(
+		fetch(LINEARIZER_URL, { headers: new Headers([["Accept", "application/json"]]) }),
 		HTTP_TIMEOUT_MS, "linearizer: timeout"
-	).then((json) => json?.data ?? null);
+	);
+	if (!response.ok)
+		throw new Error(`linearizer: HTTP ${response.status}`);
+	const json = await response.json();
+	return json?.data ?? null;
 }
 
 //
@@ -703,7 +701,7 @@ class AppBehavior extends Behavior {
 		this.fetching = false;
 		this.refreshNextAction(application);
 	}
-	refreshNextAction(application) {
+	async refreshNextAction(application) {
 		if (this.fetching)
 			return;
 
@@ -717,23 +715,22 @@ class AppBehavior extends Behavior {
 			return;
 		}
 
-		const self = this;
 		this.fetching = true;
 		this.markFrame(application, this.showNextAction("NEXT BEST ACTION", "Loading...", `${LINEARIZER_HOST}:${LINEARIZER_PORT}`));
-		fetchToday().then(
-			(data) => {
-				self.fetching = false;
-				self.nextAt = Time.ticks + NEXT_REFRESH_MS;
-				self.applyNextAction(application, data);
-			},
-			(error) => {
-				self.fetching = false;
-				self.nextAt = Time.ticks + NEXT_RETRY_MS;		// retry soon
-				trace(`linearizer: ${error}\n`);
-				self.markFrame(application, self.showNextAction("NEXT BEST ACTION", "Linearizer unreachable",
-					fitText(metaStyle, String(error?.message ?? error), CARD_TEXT_WIDTH, 1)));
-			}
-		);
+		try {
+			const data = await fetchToday();
+			this.nextAt = Time.ticks + NEXT_REFRESH_MS;
+			this.applyNextAction(application, data);
+		}
+		catch (error) {
+			this.nextAt = Time.ticks + NEXT_RETRY_MS;		// retry soon
+			trace(`linearizer: ${error}\n`);
+			this.markFrame(application, this.showNextAction("NEXT BEST ACTION", "Linearizer unreachable",
+				fitText(metaStyle, String(error?.message ?? error), CARD_TEXT_WIDTH, 1)));
+		}
+		finally {
+			this.fetching = false;
+		}
 	}
 	applyNextAction(application, data) {
 		const task = data?.task;
