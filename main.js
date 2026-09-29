@@ -207,25 +207,34 @@ function formatHour(hour)
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// the bundled fonts cover printable ASCII only; unmapped glyphs are skipped
-// silently by the renderer, so fold common Latin-1 characters down to ASCII.
+// The baked Pixel Operator assets cover Basic Latin, almost all of Latin-1
+// Supplement, and a handful of General Punctuation characters (see the
+// `blocks`/`characters` properties in manifest.json). Unmapped glyphs are
+// skipped silently by the renderer, so anything outside the baked set is
+// folded to ASCII below -- which is also where the dozen Latin-1 characters
+// Pixel Operator lacks (§, ¹²³, ¼½¾, ¤ ª ¬ ¯ ¸) get their fallback.
+const FONT_UNICODE = (() => {
+	// Latin-1 Supplement minus the glyphs fontbm reported as missing
+	const missing = new Set([0xa4, 0xa7, 0xaa, 0xad, 0xaf, 0xb2, 0xb3, 0xb9, 0xba, 0xbc, 0xbd, 0xbe]);
+	let chars = "";
+	for (let c = 0xa1; c <= 0xff; c++)
+		if (!missing.has(c))
+			chars += String.fromCharCode(c);
+	// General Punctuation baked via the explicit `characters` list
+	return chars + "\u20ac\u2013\u2014\u2018\u2019\u201c\u201d\u2026\u2022";
+})();
+
 const ASCII_FOLD = {
-	"\u00c4": "AE", "\u00e4": "ae", "\u00d6": "OE", "\u00f6": "oe",
-	"\u00dc": "UE", "\u00fc": "ue", "\u00df": "ss", "\u00c5": "A", "\u00e5": "a",
-	"\u00c6": "AE", "\u00e6": "ae", "\u00d8": "O", "\u00f8": "o",
-	"\u00c7": "C", "\u00e7": "c", "\u00c9": "E", "\u00e9": "e", "\u00c8": "E",
-	"\u00e8": "e", "\u00ca": "E", "\u00ea": "e", "\u00cb": "E", "\u00eb": "e",
-	"\u00c0": "A", "\u00e0": "a", "\u00c1": "A", "\u00e1": "a", "\u00cd": "I",
-	"\u00ed": "i", "\u00ce": "I", "\u00ee": "i", "\u00cf": "I", "\u00ef": "i",
-	"\u00d1": "N", "\u00f1": "n", "\u00d3": "O", "\u00f3": "o", "\u00d4": "O",
-	"\u00f4": "o", "\u00d5": "O", "\u00f5": "o", "\u00da": "U", "\u00fa": "u",
-	"\u00dd": "Y", "\u00fd": "y", "\u00b5": "u",
-	"\u2013": "-", "\u2014": "-", "\u2018": "'", "\u2019": "'", "\u201c": "\"",
-	"\u201d": "\"", "\u2026": "...", "\u00b7": "-", "\u2022": "-", "\u00ba": "o",
-	"\u00aa": "a", "\u20ac": "EUR", "\u00a3": "GBP", "\u00b0": " deg"
+	"\u00a4": "?", "\u00a7": "SS", "\u00aa": "a", "\u00ad": "", "\u00af": "-",
+	"\u00b2": "2", "\u00b3": "3", "\u00b9": "1", "\u00ba": "o",
+	"\u00bc": "1/4", "\u00bd": "1/2", "\u00be": "3/4",
+	"\u0100": "A", "\u00e5": "a", "\u0161": "s", "\u017e": "z", "\u017d": "Z",
+	"\u0104": "A", "\u0119": "e", "\u0142": "l", "\u0144": "n", "\u015b": "s",
+	"\u2020": "+", "\u2021": "++", "\u2030": "%", "\u20ac": "EUR", "\u2122": "(TM)"
 };
 
-function toAscii(text)
+// map arbitrary text onto glyphs the baked font actually has
+function toFontText(text)
 {
 	let result = "";
 	for (let i = 0; i < text.length; i++)
@@ -233,6 +242,10 @@ function toAscii(text)
 		const ch = text[i];
 		if (ch >= " " && ch <= "~")
 			result += ch;
+		else if ("\u00a0" === ch)
+			result += " ";
+		else if (0 <= FONT_UNICODE.indexOf(ch))
+			result += ch;		// real umlauts, not UE
 		else if (undefined !== ASCII_FOLD[ch])
 			result += ASCII_FOLD[ch];
 		else if ("\t" === ch || "\n" === ch)
@@ -732,7 +745,7 @@ class AppBehavior extends Behavior {
 		const scores = task.scores ?? {};
 		const parts = [];
 		if (task.project?.name)
-			parts.push(toAscii(task.project.name));
+			parts.push(toFontText(task.project.name));
 		if (scores.quadrant)
 			parts.push(scores.quadrant);
 		parts.push(formatDeadline(task.effective_deadline ?? task.deadline, wallTime()));
@@ -741,7 +754,7 @@ class AppBehavior extends Behavior {
 
 		this.markFrame(application, this.showNextAction(
 			"NEXT BEST ACTION",
-			fitText(taskStyle, toAscii(task.name ?? "(untitled)"), CARD_TEXT_WIDTH, 2),
+			fitText(taskStyle, toFontText(task.name ?? "(untitled)"), CARD_TEXT_WIDTH, 2),
 			fitText(metaStyle, parts.join("  |  "), CARD_TEXT_WIDTH, 1)
 		));
 	}

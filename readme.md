@@ -115,6 +115,17 @@ SDK releases ship the same binaries) and either put it on your `PATH` or point
 export FONTBM=/path/to/fontbm   # or just keep `fontbm` somewhere on PATH
 ```
 
+### Unicode
+
+Each face bakes `blocks: ["Basic Latin", "Latin-1 Supplement"]` plus an
+explicit `characters` list (`€ – — ‘ ’ “ ” … •`), so German umlauts and ß
+render as themselves -- *Überarbeiten & einreichen*, not *UEberarbeiten*.
+Pixel Operator lacks a dozen Latin-1 glyphs (§, ¹²³, ¼½¾, and friends);
+`toFontText()` in `main.js` folds exactly those (and anything outside the
+baked ranges) to ASCII, and passes everything the font has straight through.
+If you change the baked set, re-check the `fontbm` "glyph N not found"
+warnings during the build and update `FONT_UNICODE`/`ASCII_FOLD` to match.
+
 ## Build
 
 ```shell
